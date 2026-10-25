@@ -1,0 +1,4 @@
+# Exclude developer tools from PHP CodeSniffer.
+# These scripts are not shipped with the plugin (see .gitattributes export-ignore)
+# and are not required to comply with the Moodle coding standard.
+/tools/

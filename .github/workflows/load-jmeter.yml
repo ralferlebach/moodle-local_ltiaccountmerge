@@ -1,0 +1,176 @@
+name: Load test (JMeter)
+
+# Read-endpoint load test (AP6). Manual only.
+#   selfcontained (default): build a fresh Moodle + {{PLUGINTITLE}} siblings, seed and load-test here.
+#   external: point at a Moodle you already run and seeded (enter base_url + courseid).
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'selfcontained (build+seed here) or external (your own site)'
+        type: choice
+        options: [selfcontained, external]
+        default: selfcontained
+        required: true
+      base_url:
+        description: '[external mode] Base URL of your seeded Moodle'
+        required: false
+      courseid:
+        description: '[external mode] Course id of a {{PLUGINTITLE}} course offering anonymous entry'
+        required: false
+      threads:
+        description: Concurrent virtual users (plateau)
+        default: '25'
+        required: false
+      rampup:
+        description: Ramp-up seconds
+        default: '10'
+        required: false
+      duration:
+        description: Plateau duration seconds
+        default: '90'
+        required: false
+
+jobs:
+  jmeter:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: moodle
+          POSTGRES_PASSWORD: moodle
+          POSTGRES_DB: moodle
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+
+    env:
+      MOODLE_BRANCH: MOODLE_405_STABLE
+      MOODLE_WWWROOT: http://127.0.0.1:8000
+
+    steps:
+      - name: Check out plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+      - name: Set up PHP
+        if: ${{ github.event.inputs.mode == 'selfcontained' }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pgsql, gd, intl, zip, soap, mbstring, curl, xml, exif
+          ini-values: max_input_vars=5000
+      - name: Build, install and seed a self-contained site
+        id: selfcontained
+        if: ${{ github.event.inputs.mode == 'selfcontained' }}
+        run: |
+          git clone --depth 1 --branch "$MOODLE_BRANCH" \
+            https://github.com/moodle/moodle.git moodle
+          mkdir -p moodle/enrol && cp -a plugin moodle/{{PLUGINPATH}}
+          rm -rf moodle/{{PLUGINPATH}}/.git
+          # {{COMPONENT}} has hard version.php dependencies on the sister plugins, so the site
+          # cannot install with enrol alone. Pin SIBLING_REF to the matching release tag/SHA for a
+          # reproducible RC build (defaults to main).
+          SIBLING_REF="${SIBLING_REF:-main}"
+          for pair in "auth:{{PLUGINPATH}}" "mod:{{PLUGINPATH}}" "tool:{{PLUGINPATH}}"; do
+            sib="${pair%%:*}"; dest="${pair##*:}"
+            git clone --depth 1 --branch "$SIBLING_REF" \
+              "https://github.com/{{GITHUBUSER}}/moodle-${sib}_{{PLUGINNAME}}.git" "/tmp/sib_${sib}" \
+              || git clone --depth 1 "https://github.com/{{GITHUBUSER}}/moodle-${sib}_{{PLUGINNAME}}.git" "/tmp/sib_${sib}"
+            mkdir -p "$(dirname "moodle/${dest}")"
+            cp -a "/tmp/sib_${sib}" "moodle/${dest}"
+            rm -rf "moodle/${dest}/.git"
+          done
+          mkdir -p /tmp/moodledata
+          cd moodle
+          php admin/cli/install.php \
+            --non-interactive --agree-license \
+            --dbtype=pgsql --dbhost=127.0.0.1 --dbport=5432 --dbname=moodle \
+            --dbuser=moodle --dbpass=moodle \
+            --wwwroot="$MOODLE_WWWROOT" --dataroot=/tmp/moodledata \
+            --fullname="CI" --shortname="CI" \
+            --adminpass="Admin!23" --adminemail=ci@example.invalid
+          # No web server is started here: seeding below is a CLI script and does not need one,
+          # and a background server does not reliably survive beyond the step that started it.
+          # Every step that needs HTTP starts and awaits its own server.
+          # seed_large.php prints "export KEY='value'" lines (BASE_URL, COURSEID, INSTANCEID);
+          # expose the ones the load plan needs as step outputs.
+          php {{PLUGINPATH}}/tests/load/seed_large.php > /tmp/seed.env
+          get() { sed -n "s/^export $1='\(.*\)'$/\1/p" /tmp/seed.env; }
+          {
+            echo "base_url=$(get BASE_URL)"
+            echo "courseid=$(get COURSEID)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Resolve run parameters
+        id: params
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "external" ]; then
+            echo "base_url=${{ github.event.inputs.base_url }}" >> "$GITHUB_OUTPUT"
+            echo "courseid=${{ github.event.inputs.courseid }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_url=${{ steps.selfcontained.outputs.base_url }}" >> "$GITHUB_OUTPUT"
+            echo "courseid=${{ steps.selfcontained.outputs.courseid }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up JMeter
+        run: |
+          # Supply-chain hardening: verify the download against Apache's published SHA-512.
+          curl -sSL https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz -o jmeter.tgz
+          curl -sSL https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.6.3.tgz.sha512 -o jmeter.tgz.sha512 \
+            || curl -sSL https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz.sha512 -o jmeter.tgz.sha512
+          # The Apache .sha512 file already carries a filename ("<hash> *apache-jmeter-5.6.3.tgz"),
+          # so appending a second one produced a malformed line and sha512sum looked for a file
+          # called "apache-jmeter-5.6.3.tgz  jmeter.tgz". Take the hash field only.
+          echo "$(awk '{print $1}' jmeter.tgz.sha512)  jmeter.tgz" | sha512sum -c -
+          tar xzf jmeter.tgz
+      - name: Run load plan
+        run: |
+          # Serve with multiple workers so parallel requests don't serialise. Started inside THIS
+          # step so it is guaranteed to be alive for the whole run.
+          #
+          # Bound to 127.0.0.1 rather than "localhost": PHP's built-in server listens on a
+          # single address, while clients resolve "localhost" differently - curl reached the
+          # server while k6 tried ::1 and reported connection errors as HTTP 0.
+          PHP_CLI_SERVER_WORKERS=8 php -S 127.0.0.1:8000 -t moodle >/tmp/moodle-server.log 2>&1 &
+          ready=0
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              http://127.0.0.1:8000/login/index.php || true)
+            if [ "$code" = "200" ]; then ready=1; break; fi
+            sleep 3
+          done
+          if [ "$ready" != "1" ]; then
+            echo "Der Moodle-Testserver ist nicht erreichbar geworden (letzter HTTP-Status: $code)."
+            cat /tmp/moodle-server.log || true
+            exit 1
+          fi
+          # Pre-flight: confirm the target answers before generating load. A dead server otherwise
+          # surfaces as a wall of failed samples and looks like a plugin problem.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+            "${{ steps.params.outputs.base_url }}/login/index.php" || true)
+          if [ "$code" != "200" ]; then
+            echo "Ziel ist nicht erreichbar (HTTP $code): ${{ steps.params.outputs.base_url }}"
+            cat /tmp/moodle-server.log || true
+            exit 1
+          fi
+          apache-jmeter-5.6.3/bin/jmeter -n \
+            -t plugin/tests/load/{{PLUGINNAME}}-read-endpoints.jmx \
+            -Jbase_url='${{ steps.params.outputs.base_url }}' \
+            -Jcourseid='${{ steps.params.outputs.courseid }}' \
+            -Jthreads='${{ github.event.inputs.threads }}' \
+            -Jrampup='${{ github.event.inputs.rampup }}' \
+            -Jduration='${{ github.event.inputs.duration }}' \
+            -l results.jtl
+      - name: Show Moodle server log on failure
+        if: failure() && github.event.inputs.mode == 'selfcontained'
+        run: tail -100 /tmp/moodle-server.log || true
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-results
+          path: results.jtl
+          retention-days: 7
+          if-no-files-found: ignore

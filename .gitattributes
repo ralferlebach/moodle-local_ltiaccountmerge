@@ -1,0 +1,33 @@
+# Distribution rules for `git archive` (the GitHub release tarball/zip).
+#
+# Principle: the released package is a reproducible *source* release of the
+# plugin — everything Moodle runs — but none of the development, CI or
+# load-testing machinery.
+
+# --- Never distribute: repository and CI plumbing -------------------------
+/.github            export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/makefile           export-ignore
+/phpcs.xml          export-ignore
+
+# --- Never distribute: internal documentation -----------------------------
+# Working notes, session logs and planning material are not product docs.
+# README.md and CHANGELOG.md ship (they are top level).
+/docs               export-ignore
+
+# --- Never distribute: developer tooling ----------------------------------
+/tools              export-ignore
+/node_modules       export-ignore
+
+# --- Never distribute: load- and browser-test harnesses -------------------
+# These seed courses/users, enable web services and mint tokens: fine as a
+# developer/CI tool, but they have no place on a production Moodle server.
+/tests/load         export-ignore
+/tests/playwright   export-ignore
+# Only relevant when a repository is updated in place. Moodle's ZIP installation replaces
+# the plugin directory as a whole, so a stale file cannot survive it.
+/db/removed_files.txt export-ignore
+
+# The Moodle-native tests (tests/*.php, tests/behat/) DO ship: they are useful
+# to maintainers, plugin review and distribution QA.

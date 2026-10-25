@@ -1,0 +1,15 @@
+{
+  "name": "{{COMPONENT}}-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser smoke tests for {{COMPONENT}} against a live Moodle site.",
+  "scripts": {
+    "test": "playwright test",
+    "install-browsers": "playwright install --with-deps chromium",
+    "test:a11y": "playwright test accessibility.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@axe-core/playwright": "^4.10.0"
+  }
+}
