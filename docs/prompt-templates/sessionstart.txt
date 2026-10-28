@@ -1,11 +1,11 @@
-# Session start — {{COMPONENT}}
+# Session start — local_ltiaccountmerge
 
-You are continuing development of **{{COMPONENT}}**, the system administration and operations layer of FlexAccess.
+You are continuing development of **local_ltiaccountmerge**, the system administration and operations layer of FlexAccess.
 
 Before changing code:
 1. Read `docs/Lastenheft.md`, `docs/Pflichtenheft.md`, and `docs/Technisches_Blueprint.md`.
 2. Read the latest `docs/sessions/session-*.md` if present.
-3. Inspect the actual public APIs of `{{COMPONENT}}` and `{{COMPONENT}}`; do not bypass them with direct writes.
+3. Inspect the actual public APIs of `local_ltiaccountmerge` and `local_ltiaccountmerge`; do not bypass them with direct writes.
 4. Keep this tool out of the runtime login path. No other FlexAccess plugin may depend on it.
 5. Use system-context capabilities and POST + sesskey for every mutation.
 6. Paginate/bound all account and queue lists; avoid N+1 queries.

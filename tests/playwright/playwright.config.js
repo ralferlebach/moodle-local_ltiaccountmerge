@@ -1,23 +1,11 @@
-// This file is part of Moodle - http://moodle.org/
-//
-// Moodle is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Moodle is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
-
 /**
- * Playwright configuration for the {{COMPONENT}} browser tests.
+ * Playwright configuration for the local_ltiaccountmerge browser tests.
  *
- * @module     {{COMPONENT}}/playwright.config
- * @copyright  2026 {{AUTHOR}}
+ * The suite needs the two-site LTI stack (platform A, tool B) described in README.md. Site URLs
+ * come from the seed file, so no baseURL is configured.
+ *
+ * @module     local_ltiaccountmerge/playwright.config
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -25,18 +13,18 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: '.',
-  timeout: 60000,
-  expect: { timeout: 10000 },
-  retries: process.env.CI ? 1 : 0,
+  testMatch: /.*\.spec\.js/,
+  timeout: 240000,
+  expect: { timeout: 20000 },
+  workers: 1,
+  fullyParallel: false,
+  retries: 0,
+  reporter: [['list']],
   use: {
-    baseURL: process.env.FLEXACCESS_BASE_URL || 'http://localhost:8000',
-    headless: true,
-    // Captured on every run, not just on failure: a green run's trace documents the intended
-    // journey end to end and its screenshots are usable as illustrations.
-    screenshot: 'on',
-    trace: 'on',
-    // A recording of the failing run makes a diagnosis possible without reproducing it locally.
-    video: 'on',
+    ignoreHTTPSErrors: false,
+    launchOptions: { args: ['--proxy-bypass-list=*.platform-a.test;*.tool-b.test;localhost;127.0.0.1'] },
+    viewport: { width: 1280, height: 900 },
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
   },
-  reporter: [['list'], ['html', { open: 'never' }]],
 });

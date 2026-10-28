@@ -1,0 +1,74 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/merge_job
+
+    One job of the reviewed merge workflow.
+
+    Context variables required for this template:
+    * id, source, target, status, statuscode, outcome, recovered, supportid, hassupportid, mergelogid
+    * timeconsented, timestarted, timefinished, consentby, cancancel, cancelurl
+    * hastables, tables (table, strategy, status, rowssource, rowstarget)
+
+    Example context (json):
+    {
+        "id": 3, "source": "alice (#5)", "target": "alice2 (#6)", "status": "Succeeded", "statuscode": "succeeded",
+        "outcome": "Merged", "recovered": false, "supportid": "", "hassupportid": false, "mergelogid": 12,
+        "timeconsented": "1 January 2027", "timestarted": "1 January 2027", "timefinished": "1 January 2027",
+        "consentby": "admin (#2)", "cancancel": false, "cancelurl": "#", "hastables": true,
+        "tables": [{"table": "grade_grades", "strategy": "Special", "status": "Moves", "rowssource": 2, "rowstarget": 0}]
+    }
+}}
+<section class="local-ltiam-mergejob card my-3" aria-labelledby="ltiam-mergejob-{{id}}" data-status="{{statuscode}}">
+    <div class="card-body">
+        <h3 class="h4 card-title" id="ltiam-mergejob-{{id}}">{{#str}}merge_job, local_ltiaccountmerge, {{id}}{{/str}}</h3>
+        <dl class="row mb-0">
+            <dt class="col-sm-3">{{#str}}mergesource, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{source}}</dd>
+            <dt class="col-sm-3">{{#str}}mergetarget, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{target}}</dd>
+            <dt class="col-sm-3">{{#str}}col_status, local_ltiaccountmerge{{/str}}</dt>
+            <dd class="col-sm-9"><span class="ltiam-jobstatus">{{status}}</span>{{#recovered}} ({{#str}}merge_recovered, local_ltiaccountmerge{{/str}}){{/recovered}}</dd>
+            <dt class="col-sm-3">{{#str}}outcome, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{outcome}}</dd>
+            {{#hassupportid}}<dt class="col-sm-3">{{#str}}supportid, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9"><code>{{supportid}}</code></dd>{{/hassupportid}}
+            <dt class="col-sm-3">{{#str}}merge_consentby, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{consentby}}, {{timeconsented}}</dd>
+            <dt class="col-sm-3">{{#str}}merge_started, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{timestarted}}</dd>
+            <dt class="col-sm-3">{{#str}}merge_finished, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{timefinished}}</dd>
+            <dt class="col-sm-3">{{#str}}merge_logid, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{mergelogid}}</dd>
+        </dl>
+        {{#hastables}}
+        <div class="table-responsive mt-2">
+            <table class="generaltable table table-sm">
+                <caption>{{#str}}merge_consented_tables, local_ltiaccountmerge{{/str}}</caption>
+                <thead><tr>
+                    <th scope="col">{{#str}}col_table, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_strategy, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_status, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_rowssource, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_rowstarget, local_ltiaccountmerge{{/str}}</th>
+                </tr></thead>
+                <tbody>
+                    {{#tables}}<tr><th scope="row"><code>{{table}}</code></th><td>{{strategy}}</td><td>{{status}}</td><td>{{rowssource}}</td><td>{{rowstarget}}</td></tr>{{/tables}}
+                </tbody>
+            </table>
+        </div>
+        {{/hastables}}
+        {{#cancancel}}
+        <form method="post" action="{{cancelurl}}" class="mt-2">
+            <button type="submit" class="btn btn-secondary">{{#str}}merge_cancel, local_ltiaccountmerge{{/str}}</button>
+        </form>
+        {{/cancancel}}
+    </div>
+</section>

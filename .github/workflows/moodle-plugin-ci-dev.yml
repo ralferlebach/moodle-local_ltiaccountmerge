@@ -1,14 +1,19 @@
 ##############################################################################
-# Moodle Plugin CI - development (accelerated) pipeline - {{COMPONENT}}
+# Moodle Plugin CI - development (accelerated) pipeline - local_ltiaccountmerge
 #
 # Runs on push / PR to every branch EXCEPT main. Parallel jobs: phplint gates
 # phpunit; codeanalysis (phpcs blocking; phpmd/phpcpd advisory) and quality
-# (phpdoc/savepoints/validate) run in parallel and gate ci-complete. PHP-only
-# plugin: no grunt / mustache steps. Reduced matrix spanning Moodle 4.5/5.0/5.2.
+# (phpdoc/savepoints/validate) run in parallel and gate ci-complete. No grunt /
+# mustache steps (templates are checked locally, docs/TESTING.md).
+# Reduced matrix spanning Moodle 4.5/5.0/5.3.
 # The full sequential matrix runs on main via moodle-plugin-ci-main.yml.
+# Compatibility sample: PHPUnit on 4.5/PG16, 5.0/MariaDB 10.11, 5.3/PG17 and
+# 5.3/MariaDB 11.4; Behat on 4.5/MariaDB 10.11 and 5.3/PG17. Nothing that did
+# not run counts as green: PHPUnit fails on skipped/incomplete/risky tests and
+# when 0 tests ran; Behat fails on 0 scenarios and on skipped/undefined steps.
 #
-# {{PLUGINTITLE}} has no external plugin dependencies; add-plugin only pulls the
-# sibling plugins required by this component's hard dependency graph.
+# The plugin has no plugin dependencies; moodle-plugin-ci installs it alone
+# (the LTI family plugins are independent of each other).
 ##############################################################################
 
 name: Moodle Plugin CI Dev
@@ -101,7 +106,7 @@ jobs:
           sudo locale-gen en_AU.UTF-8
       - name: Moodle Code Checker
         if: ${{ always() }}
-        run: set -o pipefail; moodle-plugin-ci codechecker --max-warnings 0 --exclude=PSR1.Classes.ClassDeclaration,moodle.Commenting.TodoComment 2>&1 | tee ci-logs/codechecker.log
+        run: set -o pipefail; moodle-plugin-ci codechecker --max-warnings 0 --exclude=PSR1.Classes.ClassDeclaration,moodle.Commenting.TodoComment plugin 2>&1 | tee ci-logs/codechecker.log
       - name: PHP Mess Detector
         continue-on-error: true
         if: ${{ always() }}
@@ -161,9 +166,6 @@ jobs:
           sudo locale-gen en_AU.UTF-8
       - name: Install Moodle, dependencies and plugin (no test init)
         run: |
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
           moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1 --no-init
         env:
           DB: pgsql
@@ -197,7 +199,7 @@ jobs:
     needs: [lint-php]
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ matrix.pg }}
         env:
           POSTGRES_USER: 'postgres'
           POSTGRES_HOST_AUTH_METHOD: 'trust'
@@ -205,20 +207,25 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 3
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:${{ matrix.maria }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval 10s --health-timeout 5s --health-retries 3
+        # mariadb:11.4 (required by Moodle 5.3) no longer ships mysqladmin, so "mysqladmin ping" made
+        # "Initialize containers" fail in every cell that starts this service. healthcheck.sh is in 10.11 and 11.4.
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s --health-timeout 5s --health-retries 10
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { moodle: MOODLE_405_STABLE, php: '8.1', database: pgsql }
-          - { moodle: MOODLE_500_STABLE, php: '8.2', database: mariadb }
-          - { moodle: MOODLE_502_STABLE, php: '8.3', database: pgsql }
+          - { moodle: MOODLE_405_STABLE, php: '8.1', database: pgsql, pg: '16', maria: '10.11' }
+          - { moodle: MOODLE_500_STABLE, php: '8.2', database: mariadb, pg: '16', maria: '10.11' }
+          - { moodle: MOODLE_503_STABLE, php: '8.3', database: pgsql, pg: '17', maria: '11.4' }
+          - { moodle: MOODLE_503_STABLE, php: '8.4', database: mariadb, pg: '17', maria: '11.4' }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -244,16 +251,23 @@ jobs:
           sudo locale-gen en_AU.UTF-8
       - name: Install Moodle, dependencies and plugin
         run: |
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
           moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
         env:
           DB: ${{ matrix.database }}
           MOODLE_BRANCH: ${{ matrix.moodle }}
       - name: PHPUnit tests
         if: ${{ always() }}
-        run: set -o pipefail; moodle-plugin-ci phpunit --fail-on-warning --testdox 2>&1 | tee ci-logs/phpunit.log
+        run: set -o pipefail; moodle-plugin-ci phpunit --fail-on-warning --fail-on-risky --fail-on-skipped --fail-on-incomplete --testdox 2>&1 | tee ci-logs/phpunit.log
+      - name: PHPUnit must have executed tests (0 tests is not green)
+        if: ${{ always() }}
+        run: |
+          log=ci-logs/phpunit.log
+          if [ ! -s "$log" ]; then echo "::error::No PHPUnit log - the PHPUnit step did not run"; exit 1; fi
+          clean=$(sed -r 's/\x1B\[[0-9;]*[A-Za-z]//g' "$log")
+          if grep -q 'free pass' <<<"$clean"; then echo "::error::moodle-plugin-ci found no PHPUnit tests - 0 tests is not green"; exit 1; fi
+          n=$(grep -oE '^(OK \([0-9]+ tests?|Tests: [0-9]+)' <<<"$clean" | grep -oE '[0-9]+' | tail -1)
+          echo "PHPUnit tests executed: ${n:-none}"
+          if [ -z "$n" ] || [ "$n" -eq 0 ]; then echo "::error::PHPUnit executed 0 tests"; exit 1; fi
       - name: Collect error summary
         if: ${{ always() }}
         run: |
@@ -269,18 +283,37 @@ jobs:
           if-no-files-found: ignore
 
   behat:
-    name: "Behat / MOODLE_405_STABLE / PHP 8.2 / Chrome"
+    name: "Behat / ${{ matrix.moodle }} / PHP ${{ matrix.php }} / ${{ matrix.database }} / Chrome"
     runs-on: ubuntu-22.04
     needs: [lint-php]
     services:
+      postgres:
+        image: postgres:${{ matrix.pg }}
+        env:
+          POSTGRES_USER: 'postgres'
+          POSTGRES_HOST_AUTH_METHOD: 'trust'
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 3
       mariadb:
-        image: mariadb:10.11
+        image: mariadb:${{ matrix.maria }}
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval 10s --health-timeout 5s --health-retries 3
+        # mariadb:11.4 (required by Moodle 5.3) no longer ships mysqladmin, so "mysqladmin ping" made
+        # "Initialize containers" fail in every cell that starts this service. healthcheck.sh is in 10.11 and 11.4.
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Lower bound (classic layout) and upper bound (public/ layout, PostgreSQL 17).
+          - { moodle: MOODLE_405_STABLE, php: '8.2', database: mariadb, pg: '16', maria: '10.11' }
+          - { moodle: MOODLE_503_STABLE, php: '8.3', database: pgsql, pg: '17', maria: '11.4' }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -289,7 +322,7 @@ jobs:
         run: mkdir -p ci-logs
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php }}
           ini-values: max_input_vars=5000
           coverage: none
       - name: Cache Composer downloads
@@ -306,17 +339,27 @@ jobs:
           sudo locale-gen en_AU.UTF-8
       - name: Install Moodle, dependencies and plugin
         run: |
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
-          moodle-plugin-ci add-plugin {{GITHUBUSER}}/moodle-{{COMPONENT}} --branch development
           moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
         env:
-          DB: mariadb
-          MOODLE_BRANCH: MOODLE_405_STABLE
+          DB: ${{ matrix.database }}
+          MOODLE_BRANCH: ${{ matrix.moodle }}
       - name: Behat features
         id: behat
         if: ${{ always() }}
-        run: set -o pipefail; moodle-plugin-ci behat --profile chrome --tags "@{{COMPONENT}}&&~@broken" --dump 2>&1 | tee ci-logs/behat.log
+        run: set -o pipefail; moodle-plugin-ci behat --profile chrome --tags "@local_ltiaccountmerge&&~@broken" --dump 2>&1 | tee ci-logs/behat.log
+      - name: Behat must have run scenarios that all passed (0 scenarios, skipped or undefined steps are not green)
+        if: ${{ always() }}
+        run: |
+          log=ci-logs/behat.log
+          if [ ! -s "$log" ]; then echo "::error::No Behat log - the Behat step did not run"; exit 1; fi
+          clean=$(sed -r 's/\x1B\[[0-9;]*[A-Za-z]//g' "$log")
+          if grep -q 'free pass' <<<"$clean"; then echo "::error::No Behat features found - 0 scenarios is not green"; exit 1; fi
+          scen=$(grep -E '^[0-9]+ scenarios? \(' <<<"$clean" | tail -1)
+          steps=$(grep -E '^[0-9]+ steps? \(' <<<"$clean" | tail -1)
+          echo "Behat summary: ${scen:-none} / ${steps:-none}"
+          if [ -z "$scen" ] || [ "${scen%% *}" -eq 0 ]; then echo "::error::Behat ran 0 scenarios"; exit 1; fi
+          grep -qE '^([0-9]+) scenarios? \(\1 passed\)$' <<<"$scen" || { echo "::error::Not every Behat scenario passed: $scen"; exit 1; }
+          grep -qE '^([0-9]+) steps? \(\1 passed\)$' <<<"$steps" || { echo "::error::Skipped, undefined or pending Behat steps: $steps"; exit 1; }
       - name: Collect error summary and Behat dumps
         if: ${{ always() }}
         run: |
@@ -324,13 +367,13 @@ jobs:
             mkdir -p ci-logs/behat_dump
             cp -a "$GITHUB_WORKSPACE/moodledata/behat_dump/." ci-logs/behat_dump/
           fi
-          { echo "job: behat"; echo "status: ${{ job.status }}"; echo "ref: ${{ github.ref }}"; echo ""; ls -1 ci-logs; } > ci-logs/summary.txt
+          { echo "job: behat (${{ matrix.moodle }} / PHP ${{ matrix.php }} / ${{ matrix.database }})"; echo "status: ${{ job.status }}"; echo "ref: ${{ github.ref }}"; echo ""; ls -1 ci-logs; } > ci-logs/summary.txt
           cat ci-logs/summary.txt
       - name: Upload error summary (ZIP)
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
         with:
-          name: error-summary-dev-behat
+          name: error-summary-dev-behat-${{ matrix.moodle }}-${{ matrix.php }}-${{ matrix.database }}
           path: ci-logs
           retention-days: 7
           if-no-files-found: ignore
@@ -338,7 +381,7 @@ jobs:
         if: ${{ failure() && steps.behat.outcome == 'failure' }}
         uses: actions/upload-artifact@v7
         with:
-          name: behat-screenshots-dev
+          name: behat-screenshots-dev-${{ matrix.moodle }}-${{ matrix.php }}-${{ matrix.database }}
           path: ${{ github.workspace }}/moodledata/behat_dump
           retention-days: 7
           if-no-files-found: warn

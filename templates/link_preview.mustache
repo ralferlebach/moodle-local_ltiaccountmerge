@@ -1,0 +1,51 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/link_preview
+
+    Pre-flight card shown before a link is confirmed. Never shows the LTI subject in full.
+
+    Context variables required for this template:
+    * platform - Host name of the issuer
+    * reference - Pseudonymous identity reference
+    * targetname - Full name of the target account
+    * targetusername - Username of the target account
+    * ready - Whether the link can go ahead
+    * message - Explanation of the state
+
+    Example context (json):
+    {
+        "platform": "a.lti.test",
+        "reference": "0123456789abcdef",
+        "targetname": "Ada Lovelace",
+        "targetusername": "ada",
+        "ready": true,
+        "message": "The identity is not linked yet and can be linked to this account."
+    }
+}}
+<div class="local-ltiam-linkpreview card my-3">
+    <div class="card-body">
+        <h3 class="h5">{{#str}}link_preview, local_ltiaccountmerge{{/str}}</h3>
+        <dl class="row mb-0">
+            <dt class="col-sm-3">{{#str}}platform, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9">{{platform}}</dd>
+            <dt class="col-sm-3">{{#str}}reference, local_ltiaccountmerge{{/str}}</dt><dd class="col-sm-9"><code>{{reference}}</code></dd>
+            <dt class="col-sm-3">{{#str}}targetaccount, local_ltiaccountmerge{{/str}}</dt>
+            <dd class="col-sm-9">{{targetname}} ({{targetusername}})</dd>
+        </dl>
+        <p class="mt-3 mb-0 {{#ready}}text-success{{/ready}}{{^ready}}text-danger{{/ready}}" role="status">{{message}}</p>
+    </div>
+</div>

@@ -1,0 +1,67 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/mode_preview
+
+    Effective provisioning mode per published resource at a chosen instant.
+
+    Context variables required for this template:
+    * instant - Human readable instant
+    * hasrows - Whether any resource exists
+    * rows - Array of rows: toolname, coursename, learner, learnerpolicy, instructor, instructorpolicy, corelearner, coreinstructor
+
+    Example context (json):
+    {
+        "instant": "1 January 2027, 08:00:00 (Europe/Berlin)",
+        "hasrows": true,
+        "rows": [{
+            "toolname": "Tool", "coursename": "Course", "learner": "Automatic", "learnerpolicy": "Exam week",
+            "instructor": "Not governed", "instructorpolicy": "-", "corelearner": "Prompt", "coreinstructor": "Prompt"
+        }]
+    }
+}}
+<div class="local-ltiam-preview my-3">
+    <p>{{#str}}preview_at, local_ltiaccountmerge, {{instant}}{{/str}}</p>
+    {{#hasrows}}
+    <div class="table-responsive">
+        <table class="generaltable table table-sm">
+            <caption>{{#str}}preview_caption, local_ltiaccountmerge{{/str}}</caption>
+            <thead>
+                <tr>
+                    <th scope="col">{{#str}}resource, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}effective_learner, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}effective_instructor, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}current_core, local_ltiaccountmerge{{/str}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#rows}}
+                <tr>
+                    <th scope="row">{{toolname}}<br><small class="text-muted">{{coursename}}</small></th>
+                    <td>{{learner}}<br><small class="text-muted">{{learnerpolicy}}</small></td>
+                    <td>{{instructor}}<br><small class="text-muted">{{instructorpolicy}}</small></td>
+                    <td>{{corelearner}} / {{coreinstructor}}</td>
+                </tr>
+                {{/rows}}
+            </tbody>
+        </table>
+    </div>
+    {{/hasrows}}
+    {{^hasrows}}
+    <p class="alert alert-info" role="status">{{#str}}noresources, local_ltiaccountmerge{{/str}}</p>
+    {{/hasrows}}
+</div>

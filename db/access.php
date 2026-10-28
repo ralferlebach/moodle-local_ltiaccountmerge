@@ -15,25 +15,61 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Capability definitions for {{COMPONENT}}.
+ * Capability definitions for local_ltiaccountmerge.
  *
- * @package    {{COMPONENT}}
- * @copyright  {{YEAR}} {{AUTHOR}}
+ * No archetype except the unconditional 'user' archetype of :linkown is granted: the standard roles
+ * are documentation-only recommendations (see docs/SECURITY.md); administrators hold every capability.
+ *
+ * @package    local_ltiaccountmerge
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-// Grant capabilities to archetypes deliberately and check them in the context the action belongs
-// to. A course-level decision asked in the system context silently ignores role switching,
-// because Moodle suspends the administrator bypass only for the context being switched.
 $capabilities = [
-    '{{PLUGINTYPE}}/{{PLUGINNAME}}:view' => [
-        'captype' => 'read',
-        'contextlevel' => CONTEXT_COURSE,
+    'local/ltiaccountmerge:managepolicy' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_CONFIG,
+        'archetypes' => [],
+    ],
+    'local/ltiaccountmerge:managetexts' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_CONFIG | RISK_XSS,
+        'archetypes' => [],
+    ],
+    'local/ltiaccountmerge:link' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_PERSONAL | RISK_CONFIG,
+        'archetypes' => [],
+    ],
+    'local/ltiaccountmerge:linkown' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_PERSONAL,
         'archetypes' => [
-            'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW,
+            'user' => CAP_ALLOW,
         ],
+    ],
+    'local/ltiaccountmerge:viewaudit' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_PERSONAL,
+        'archetypes' => [],
+    ],
+    'local/ltiaccountmerge:merge' => [
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_DATALOSS | RISK_PERSONAL | RISK_CONFIG,
+        'archetypes' => [],
+    ],
+    'local/ltiaccountmerge:simulatemerge' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'riskbitmask' => RISK_PERSONAL,
+        'archetypes' => [],
     ],
 ];

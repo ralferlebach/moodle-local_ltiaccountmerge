@@ -1,4 +1,4 @@
-# Session end — {{COMPONENT}}
+# Session end — local_ltiaccountmerge
 
 Before finishing:
 1. Create a new `docs/sessions/session-NNN.md`; never overwrite history.

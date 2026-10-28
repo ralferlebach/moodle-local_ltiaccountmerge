@@ -5,3 +5,18 @@
 # affected, which is why this file is excluded from the release archive.
 #
 # The stale-files CI job fails while any of these paths still exists.
+#
+# 0.3.0: files of the uninitialised plugin template that is on the GitHub development branch (commit d5b40e1).
+# They are not part of this plugin and must be deleted when this release replaces the template.
+init_plugin.py
+classes/local/README.md
+lang/de/{{PLUGINNAME}}.php
+lang/en/{{PLUGINNAME}}.php
+tests/behat/{{PLUGINNAME}}.feature
+tests/load/seed_large.php
+tests/load/{{PLUGINNAME}}-capacity-race.js
+tests/load/{{PLUGINNAME}}-read-endpoints.jmx
+tests/load/{{PLUGINNAME}}-read-endpoints.js
+tests/playwright/helpers.js
+tests/playwright/package-lock.json
+tests/playwright/seed.php

@@ -1,15 +1,14 @@
 {
-  "name": "{{COMPONENT}}-playwright",
-  "version": "1.0.0",
+  "name": "local_ltiaccountmerge-playwright",
+  "version": "0.1.0",
   "private": true,
-  "description": "Browser smoke tests for {{COMPONENT}} against a live Moodle site.",
+  "description": "Browser end-to-end tests for local_ltiaccountmerge against the two-site LTI stack.",
   "scripts": {
     "test": "playwright test",
-    "install-browsers": "playwright install --with-deps chromium",
-    "test:a11y": "playwright test accessibility.spec.js"
+    "check": "node --check lib.js && node --check ltiaccountmerge.spec.js && node --check firstlaunch.spec.js && node --check playwright.config.js",
+    "install-browsers": "playwright install --with-deps chromium"
   },
   "devDependencies": {
-    "@playwright/test": "^1.47.0",
-    "@axe-core/playwright": "^4.10.0"
+    "@playwright/test": "^1.47.0"
   }
 }

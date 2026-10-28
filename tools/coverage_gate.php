@@ -23,8 +23,8 @@
  *
  * Usage: php tools/coverage_gate.php <clover.xml> <floor-percent>
  *
- * @package    {{COMPONENT}}
- * @copyright  2026 {{AUTHOR}}
+ * @package    local_ltiaccountmerge
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -70,8 +70,8 @@ if ($component === null) {
     exit(1);
 }
 // A single plugin needs no lookup table: its install path is fixed at template initialisation.
-$needle = '/{{PLUGINPATH}}/';
-if ($component !== '{{COMPONENT}}') {
+$needle = '/local/ltiaccountmerge/';
+if ($component !== 'local_ltiaccountmerge') {
     fwrite(STDERR, "Unerwartete Komponente: $component\n");
     exit(1);
 }
@@ -81,9 +81,9 @@ $covered = 0;
 $total = 0;
 foreach ($xml->xpath('//file') as $file) {
     $name = (string) $file['name'];
-    // Restricted to this plugin: the three sibling plugins are installed alongside it, but their
-    // tests do not run in this job. Counting their statements would put uncovered code in the
-    // denominator and make the figure meaningless. Test files are excluded as well - they are the
+    // Restricted to this plugin: Moodle core and any other installed plugin are in the report too,
+    // but their tests do not run in this job. Counting their statements would put uncovered code in
+    // the denominator and make the figure meaningless. Test files are excluded as well - they are the
     // instrument, not the subject.
     if (strpos($name, $needle) === false || strpos($name, '/tests/') !== false) {
         continue;

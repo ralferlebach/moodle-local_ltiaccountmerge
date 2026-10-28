@@ -1,0 +1,58 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/error_page
+
+    Branded error page of the error catalogue. The body is already sanitised HTML.
+
+    Context variables required for this template:
+    * title - Heading text
+    * body - Sanitised HTML body
+    * brandname - Brand name (escaped)
+    * logourl - Logo URL or empty
+    * hassupport, support - Support contact text
+    * hassupportid, supportid - Support ID
+    * code - Error code
+
+    Example context (json):
+    {
+        "title": "Account already linked",
+        "body": "<p>This identity is already linked.</p>",
+        "brandname": "Example University",
+        "logourl": "",
+        "hassupport": true,
+        "support": "helpdesk@example.org",
+        "hassupportid": true,
+        "supportid": "LTIAM-0123ABCD",
+        "code": "identitybound"
+    }
+}}
+<section class="local-ltiam-error card my-3" aria-labelledby="ltiam-error-title" data-ltiam-code="{{code}}">
+    <div class="card-body">
+        {{#logourl}}<img class="mb-3" src="{{logourl}}" alt="{{brandname}}" style="max-height:4rem">{{/logourl}}
+        {{^logourl}}<p class="text-muted mb-2">{{brandname}}</p>{{/logourl}}
+        <h2 id="ltiam-error-title" class="h3" tabindex="-1">{{title}}</h2>
+        <div role="alert" class="ltiam-error-body">{{{body}}}</div>
+        {{#hassupportid}}
+        <p class="mt-3"><span class="font-weight-bold">{{#str}}supportid, local_ltiaccountmerge{{/str}}</span>
+            <code class="ltiam-supportid">{{supportid}}</code></p>
+        {{/hassupportid}}
+        {{#hassupport}}
+        <p>{{#str}}supportcontact, local_ltiaccountmerge{{/str}} {{support}}</p>
+        {{/hassupport}}
+    </div>
+</section>

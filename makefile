@@ -1,4 +1,4 @@
-# Makefile for {{COMPONENT}}
+# Makefile for local_ltiaccountmerge
 # Mirrors the moodle-plugin-ci check suite used in GitHub Actions.
 #
 # Targets:
@@ -27,15 +27,12 @@
 # Tests:
 #   make phpunit      — PHPUnit testsuite for this plugin
 #   make playwright   — browser (Playwright) tests (installs Playwright on 1st run)
-#   make jmeter       — JMeter read-endpoint load test (downloads JMeter on 1st run)
-#   make load-seed    — seed a load-test course + web-service token; prints exports
 #
 # Setup only:
 #   make playwright-setup — install Playwright + Chromium browser
-#   make jmeter-setup     — download Apache JMeter
 #
 # Paths are auto-detected from the makefile's own location.
-# The plugin lives at <MOODLE_ROOT>/{{PLUGINPATH}}/ —
+# The plugin lives at <MOODLE_ROOT>/local/ltiaccountmerge/ —
 # levels below the Moodle root — so both PLUGIN_DIR and MOODLE_ROOT are
 # derived automatically and work on any installation.
 # Override on the command line if necessary:
@@ -44,8 +41,8 @@
 THIS_DIR      := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 PLUGIN_DIR    ?= $(THIS_DIR)
 MOODLE_ROOT   ?= $(abspath $(PLUGIN_DIR)/../..)
-PLUGIN_NAME   ?= {{COMPONENT}}
-PLUGIN_REL    ?= {{PLUGINPATH}}
+PLUGIN_NAME   ?= local_ltiaccountmerge
+PLUGIN_REL    ?= local/ltiaccountmerge
 PHP           ?= $(shell which php 2>/dev/null || echo /usr/bin/php)
 PHPCS         ?= phpcs
 PHPCBF        ?= phpcbf
@@ -64,42 +61,17 @@ NPM           ?= npm
 #   make test-react NPM_REFRESH=1
 NPM_REFRESH   ?= 0
 
-# --- Browser / load-test tooling -------------------------------------------
+# --- Browser test tooling -------------------------------------------------
+# The Playwright suite needs the two-site LTI stack described in tests/playwright/README.md and
+# reads its fixtures from the JSON file named by LTI_SEED. There is no load-test tooling: see
+# tests/load/README.md for what is deliberately out of scope.
 PLAYWRIGHT_DIR ?= $(PLUGIN_DIR)/tests/playwright
-LOAD_DIR       ?= $(PLUGIN_DIR)/tests/load
-JMETER_VERSION ?= 5.6.3
-JMETER_HOME    ?= $(LOAD_DIR)/apache-jmeter-$(JMETER_VERSION)
-JMETER         ?= $(JMETER_HOME)/bin/jmeter
-
-# Base URL read from the site's own config.php ($CFG->wwwroot), via Moodle's
-# ABORT_AFTER_CONFIG so only the config is loaded, not the whole bootstrap.
-# Lazily evaluated: only the load / playwright targets expand it. Empty if no
-# config.php is present (e.g. a bare checkout) — then the :8000 fallback applies.
-MOODLE_WWWROOT = $(shell $(PHP) -r "define('CLI_SCRIPT',1); define('ABORT_AFTER_CONFIG',1); @include '$(MOODLE_ROOT)/config.php'; echo isset(\$$CFG->wwwroot) ? \$$CFG->wwwroot : '';" 2>/dev/null)
-
-# Load-test parameters (override on the command line):
-#   make jmeter BASE_URL=http://localhost/moodle45 TOKEN=... WORKSPACEID=.. CMID=..
-BASE_URL       ?= $(or $(MOODLE_WWWROOT),http://localhost:8000)
-TOKEN          ?=
-WORKSPACEID    ?=
-CMID           ?=
-REVISION       ?= 2000
-THREADS        ?= 25
-RAMPUP         ?= 10
-LOOPS          ?= 20
-MAXDURATION    ?= 2000
-OPLOG          ?= 5000
-
-# Values written by `make load-seed` (BASE_URL/TOKEN/WORKSPACEID/CMID). Auto-read
-# ignores the file when it does not exist yet; a command-line override wins.
--include $(LOAD_DIR)/.load-env
-# Optional: override the base URL Playwright uses (otherwise seed.php sets it).
-FLEXACCESS_BASE_URL ?= $(MOODLE_WWWROOT)
+LTI_SEED       ?= /home/claude/e2e/state/seed.json
 
 .PHONY: all fix check clear \
         lint-php lint-phpdoc lint-js lint-mustache lint-cpd lint-md \
         lint-react test-react react build \
-        fix-lint-php fix-phpdoc amd phpunit \
+        fix-lint-php fix-phpdoc amd phpunit playwright playwright-setup
 
 all: clear fix check
 	@echo ""
@@ -268,9 +240,7 @@ phpunit:
 	fi
 
 # --- Browser collaboration tests (Playwright) ------------------------------
-# Need a RUNNING Moodle site with {{COMPONENT}} installed. seed.php creates the
-# course-mode fixture and prints the exports (incl. FLEXACCESS_BASE_URL from the
-# site's wwwroot), so no manual base URL is needed for a local install.
+# Need the running two-site stack (platform A -> tool B, plugin installed on B) and its seed.json.
 
 playwright-setup:
 	@echo ""
@@ -284,57 +254,6 @@ playwright: clear
 		echo "First run: installing Playwright + Chromium..."; \
 		cd $(PLAYWRIGHT_DIR) && $(NPM) install --no-audit --no-fund && $(NPM) run install-browsers; \
 	fi
-	cd $(PLAYWRIGHT_DIR) && eval "$$($(PHP) seed.php)" && \
-		$(if $(FLEXACCESS_BASE_URL),FLEXACCESS_BASE_URL='$(FLEXACCESS_BASE_URL)' )$(NPM) test
+	cd $(PLAYWRIGHT_DIR) && LTI_SEED='$(LTI_SEED)' $(NPM) test
 
-# --- Seed a load-test course + token for the load tests ---------------------------
-# Needs a running, installed Moodle. Prints `export BASE_URL/TOKEN/WORKSPACEID/
-# CMID` for the load run. Disposable dev/staging sites only.
-load-seed: clear
-	@echo ""
-	@echo "=== Seed load-test course + web-service token (op-log = $(OPLOG)) ==="
-	@$(PHP) $(PLUGIN_DIR)/tests/load/seed_large.php $(OPLOG) | tee $(LOAD_DIR)/.load-seed.out
-	@sed -n "s/^export \([A-Z_][A-Z_]*\)=.\(.*\)./\1=\2/p" $(LOAD_DIR)/.load-seed.out > $(LOAD_DIR)/.load-env
-	@rm -f $(LOAD_DIR)/.load-seed.out
-	@echo ""
-	@echo "Saved BASE_URL/TOKEN/WORKSPACEID/CMID to $(LOAD_DIR)/.load-env"
-
-# --- Read-endpoint load test (JMeter) --------------------------------------
-# Needs a live, seeded site + a REST web-service token. Seed a load-test course and
-# mint a token first — see tests/load/README.md.
-
-jmeter-setup:
-	@echo ""
-	@echo "=== JMeter setup ==="
-	@if [ -x $(JMETER) ]; then \
-		echo "JMeter $(JMETER_VERSION) already present at $(JMETER_HOME)."; \
-	else \
-		echo "Downloading Apache JMeter $(JMETER_VERSION)..."; \
-		cd $(LOAD_DIR) && \
-		curl -fsSL https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$(JMETER_VERSION).tgz -o jmeter.tgz && \
-		tar xzf jmeter.tgz && rm -f jmeter.tgz && \
-		echo "Installed to $(JMETER_HOME)."; \
-	fi
-
-jmeter: clear jmeter-setup
-	@echo ""
-	@echo "=== JMeter load test — read endpoints ==="
-	@command -v java >/dev/null 2>&1 || { echo "Java (JRE 8+) is required to run JMeter — please install a JRE."; exit 1; }
-	@if [ -z "$(TOKEN)" ] || [ -z "$(WORKSPACEID)" ] || [ -z "$(CMID)" ]; then \
-		echo "Missing required parameters. Usage:"; \
-		echo "  make jmeter BASE_URL=<wwwroot> TOKEN=<token> WORKSPACEID=<id> CMID=<id> \\"; \
-		echo "             [REVISION=2000 THREADS=25 RAMPUP=10 LOOPS=20 MAXDURATION=2000]"; \
-		echo ""; \
-		echo "  Run 'make load-seed' first (it seeds a load-test course + token and stores them),"; \
-		echo "  or pass TOKEN/WORKSPACEID/CMID yourself. See tests/load/README.md."; \
-		exit 1; \
-	fi
-	cd $(LOAD_DIR) && $(JMETER) -n -t {{PLUGINNAME}}-read-endpoints.jmx \
-		-Jbase_url='$(BASE_URL)' -Jtoken='$(TOKEN)' \
-		-Jworkspaceid='$(WORKSPACEID)' -Jcmid='$(CMID)' -Jrevision='$(REVISION)' \
-		-Jthreads='$(THREADS)' -Jrampup='$(RAMPUP)' -Jloops='$(LOOPS)' \
-		-Jmaxduration='$(MAXDURATION)' \
-		-l {{PLUGINNAME}}-load-results.jtl
-	@echo ""
-	@echo "Results written to $(LOAD_DIR)/{{PLUGINNAME}}-load-results.jtl"
 

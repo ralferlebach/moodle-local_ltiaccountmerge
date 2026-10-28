@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-    <ruleset name="{{COMPONENT}}">
-        <description>PHPCS configuration for {{COMPONENT}}.</description>
+    <ruleset name="local_ltiaccountmerge">
+        <description>PHPCS configuration for local_ltiaccountmerge.</description>
         <rule ref="moodle"/>
         <exclude-pattern>*/tools/*</exclude-pattern>
         <exclude-pattern>*/vendor/*</exclude-pattern>

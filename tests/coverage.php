@@ -21,8 +21,8 @@
  * library/callback files. Entry-point scripts are exercised by Behat rather than PHPUnit, so
  * including them would depress the figure without saying anything about test quality.
  *
- * @package    {{COMPONENT}}
- * @copyright  2026 {{AUTHOR}}
+ * @package    local_ltiaccountmerge
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -35,8 +35,8 @@ defined('MOODLE_INTERNAL') || die();
 /**
  * Coverage scope definition for this plugin.
  *
- * @package    {{COMPONENT}}
- * @copyright  2026 {{AUTHOR}}
+ * @package    local_ltiaccountmerge
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 return new class extends \phpunit_coverage_info {

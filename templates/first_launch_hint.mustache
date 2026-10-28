@@ -1,0 +1,49 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/first_launch_hint
+
+    Notice added above the core LTI account-binding dialog and the LTI launch error pages (optional setting).
+    It never replaces core content.
+
+    Classes required for JS:
+    * none
+
+    Data attributes required for JS:
+    * none
+
+    Context variables required for this template:
+    * title - Plain text title (already escaped by the catalogue)
+    * body - Safe HTML body (limited by the HTML policy)
+    * hassupport - Whether a support contact is configured
+    * support - Support contact (plain text)
+
+    Example context (json):
+    {
+        "title": "Signing in from your learning platform",
+        "body": "<p>If you already have an account here, ask the help desk to link it.</p>",
+        "hassupport": true,
+        "support": "helpdesk@example.org"
+    }
+}}
+<aside class="local-ltiam-hint alert alert-info my-3" role="note" aria-labelledby="ltiam-hint-title" data-ltiam-hint="1">
+    <h2 id="ltiam-hint-title" class="h5">{{{title}}}</h2>
+    <div class="ltiam-hint-body">{{{body}}}</div>
+    {{#hassupport}}
+    <p class="mb-0">{{#str}}supportcontact, local_ltiaccountmerge{{/str}} {{support}}</p>
+    {{/hassupport}}
+</aside>

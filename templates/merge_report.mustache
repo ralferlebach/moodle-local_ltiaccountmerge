@@ -1,0 +1,96 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/merge_report
+
+    Merge simulation report: verdict, conflict list and conflict matrix. Read-only.
+
+    Context variables required for this template:
+    * source, target - usernames
+    * verdict, verdictcode, blocked, noexecutor, generated
+    * hasconflicts, conflicts (table, type, detail)
+    * tables (table, component, owner, category, fields, rowssource, rowstarget, collisions, status, statuscode, reason)
+    * hashidden, hidden, csvurl, jsonurl
+
+    Example context (json):
+    {
+        "source": "alice", "target": "alice2", "verdict": "Blocked", "verdictcode": "blocked", "blocked": true,
+        "noexecutor": "No merge is performed by this version.", "generated": "1 January 2027",
+        "hasconflicts": true,
+        "conflicts": [{"table": "local_x", "type": "Blocked", "detail": "no adapter"}],
+        "tables": [{"table": "local_x", "component": "local_x", "owner": "Third-party", "category": "other",
+            "fields": "userid", "rowssource": 1, "rowstarget": 0, "collisions": 0, "status": "Blocked",
+            "statuscode": "blocked", "reason": "no adapter"}],
+        "hashidden": true, "hidden": 120, "csvurl": "#", "jsonurl": "#"
+    }
+}}
+<div class="local-ltiam-merge my-3">
+    <h3 class="h4">{{#str}}simulation_result, local_ltiaccountmerge, { "source": "{{source}}", "target": "{{target}}" }{{/str}}</h3>
+    <div class="alert {{#blocked}}alert-danger{{/blocked}}{{^blocked}}alert-warning{{/blocked}}" role="status" data-verdict="{{verdictcode}}">
+        <strong>{{#str}}verdict, local_ltiaccountmerge{{/str}}</strong> {{verdict}}<br>
+        {{noexecutor}}
+    </div>
+    <p class="text-muted">{{#str}}generatedat, local_ltiaccountmerge{{/str}} {{generated}}</p>
+    {{#hasconflicts}}
+    <h4 class="h5">{{#str}}conflictlist, local_ltiaccountmerge{{/str}}</h4>
+    <ul class="ltiam-conflicts">
+        {{#conflicts}}
+        <li><code>{{table}}</code> - {{type}}: {{detail}}</li>
+        {{/conflicts}}
+    </ul>
+    {{/hasconflicts}}
+    <div class="table-responsive">
+        <table class="generaltable table table-sm" id="ltiam-merge-matrix">
+            <caption>{{#str}}matrix_caption, local_ltiaccountmerge{{/str}}</caption>
+            <thead>
+                <tr>
+                    <th scope="col">{{#str}}col_table, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_component, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_owner, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_category, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_fields, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_rowssource, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_rowstarget, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_collisions, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_status, local_ltiaccountmerge{{/str}}</th>
+                    <th scope="col">{{#str}}col_reason, local_ltiaccountmerge{{/str}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#tables}}
+                <tr data-status="{{statuscode}}">
+                    <th scope="row"><code>{{table}}</code></th>
+                    <td>{{component}}</td>
+                    <td>{{owner}}</td>
+                    <td>{{category}}</td>
+                    <td>{{fields}}</td>
+                    <td>{{rowssource}}</td>
+                    <td>{{rowstarget}}</td>
+                    <td>{{collisions}}</td>
+                    <td>{{status}}</td>
+                    <td>{{reason}}</td>
+                </tr>
+                {{/tables}}
+            </tbody>
+        </table>
+    </div>
+    {{#hashidden}}<p class="text-muted">{{#str}}hiddenrows, local_ltiaccountmerge, {{hidden}}{{/str}}</p>{{/hashidden}}
+    <p>
+        <a class="btn btn-secondary" href="{{csvurl}}">{{#str}}exportcsv, local_ltiaccountmerge{{/str}}</a>
+        <a class="btn btn-secondary" href="{{jsonurl}}">{{#str}}exportjson, local_ltiaccountmerge{{/str}}</a>
+    </p>
+</div>

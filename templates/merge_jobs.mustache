@@ -1,0 +1,60 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_ltiaccountmerge/merge_jobs
+
+    Recent jobs of the reviewed merge workflow.
+
+    Context variables required for this template:
+    * hasjobs, jobs (id, url, source, target, status, statuscode, time)
+
+    Example context (json):
+    {
+        "hasjobs": true,
+        "jobs": [{"id": 3, "url": "#", "source": "alice (#5)", "target": "alice2 (#6)", "status": "Succeeded",
+            "statuscode": "succeeded", "time": "1 January 2027"}]
+    }
+}}
+<section class="local-ltiam-mergejobs my-3" aria-labelledby="ltiam-mergejobs-heading">
+    <h3 class="h4" id="ltiam-mergejobs-heading">{{#str}}merge_jobs, local_ltiaccountmerge{{/str}}</h3>
+    {{#hasjobs}}
+    <div class="table-responsive">
+        <table class="generaltable table table-sm" id="ltiam-merge-jobs">
+            <caption>{{#str}}merge_jobs_caption, local_ltiaccountmerge{{/str}}</caption>
+            <thead><tr>
+                <th scope="col">#</th>
+                <th scope="col">{{#str}}mergesource, local_ltiaccountmerge{{/str}}</th>
+                <th scope="col">{{#str}}mergetarget, local_ltiaccountmerge{{/str}}</th>
+                <th scope="col">{{#str}}col_status, local_ltiaccountmerge{{/str}}</th>
+                <th scope="col">{{#str}}merge_modified, local_ltiaccountmerge{{/str}}</th>
+            </tr></thead>
+            <tbody>
+                {{#jobs}}
+                <tr data-status="{{statuscode}}">
+                    <th scope="row"><a href="{{url}}">{{id}}</a></th>
+                    <td>{{source}}</td>
+                    <td>{{target}}</td>
+                    <td>{{status}}</td>
+                    <td>{{time}}</td>
+                </tr>
+                {{/jobs}}
+            </tbody>
+        </table>
+    </div>
+    {{/hasjobs}}
+    {{^hasjobs}}<p>{{#str}}merge_nojobs, local_ltiaccountmerge{{/str}}</p>{{/hasjobs}}
+</section>

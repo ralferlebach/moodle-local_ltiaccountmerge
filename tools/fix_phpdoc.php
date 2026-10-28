@@ -18,7 +18,7 @@
  * Developer tool: batch-fix package docblock annotations in PHP files.
  *
  * Scans all *.php files under the given directory and ensures every file
- * docblock contains the correct package tag for {{COMPONENT}}.
+ * docblock contains the correct package tag for local_ltiaccountmerge.
  *
  * Run from the command line:
  *   php tools/fix_phpdoc.php [<plugin_dir>]
@@ -27,8 +27,8 @@
  *
  * NOT shipped with the plugin (excluded in .gitattributes export-ignore).
  *
- * @package    {{COMPONENT}}
- * @copyright  2026 {{AUTHOR}}
+ * @package    local_ltiaccountmerge
+ * @copyright  2026 Ralf Erlebach
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -53,7 +53,7 @@ if (!is_dir($plugindir)) {
     exit(1);
 }
 
-$component = '{{COMPONENT}}';
+$component = 'local_ltiaccountmerge';
 $iterator  = new RecursiveIteratorIterator(
     new RecursiveDirectoryIterator($plugindir, FilesystemIterator::SKIP_DOTS)
 );

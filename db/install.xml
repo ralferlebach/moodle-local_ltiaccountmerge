@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/ltiaccountmerge/db" VERSION="2026102700" COMMENT="XMLDB file for Moodle local/ltiaccountmerge"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+  <TABLES>
+    <TABLE NAME="local_ltiaccountmerge_policy" COMMENT="Time-based provisioning policies (scheduled windows and manual overrides)">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="scope" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="site" SEQUENCE="false" COMMENT="site, tool or course"/>
+        <FIELD NAME="scopeid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="enrol_lti_tools.id for tool, course.id for course, 0 for site"/>
+        <FIELD NAME="kind" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="scheduled" SEQUENCE="false" COMMENT="scheduled or override"/>
+        <FIELD NAME="priority" TYPE="int" LENGTH="5" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="timezone" TYPE="char" LENGTH="100" NOTNULL="true" DEFAULT="UTC" SEQUENCE="false" COMMENT="PHP timezone identifier used to interpret the local wall-clock window"/>
+        <FIELD NAME="recurrence" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="once" SEQUENCE="false" COMMENT="once or daily"/>
+        <FIELD NAME="localstart" TYPE="char" LENGTH="19" NOTNULL="false" SEQUENCE="false" COMMENT="Local wall-clock start, Y-m-d H:i:s (once) or H:i:s (daily); null = open"/>
+        <FIELD NAME="localend" TYPE="char" LENGTH="19" NOTNULL="false" SEQUENCE="false" COMMENT="Local wall-clock end (exclusive); null = open"/>
+        <FIELD NAME="modelearner" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="auth_lti provisioning mode 1-3 for learner launches; null = not governed"/>
+        <FIELD NAME="modeinstructor" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false" COMMENT="auth_lti provisioning mode 1-3 for instructor launches; null = not governed"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="usermodified" TYPE="foreign" FIELDS="usermodified" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="scope" UNIQUE="false" FIELDS="scope, scopeid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_applied" COMMENT="Bookkeeping of the provisioning modes this plugin wrote into enrol_lti_tools, with the baseline to restore">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="toolid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="enrol_lti_tools.id"/>
+        <FIELD NAME="baselinelearner" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="baselineinstructor" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="appliedlearner" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="appliedinstructor" TYPE="int" LENGTH="2" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="toolid" TYPE="unique" FIELDS="toolid"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_audit" COMMENT="Append-only audit trail: actor, time, context, action, outcome. Never contains secrets or raw LTI identifiers.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="actorid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="User who performed the action; 0 for cron/system"/>
+        <FIELD NAME="action" TYPE="char" LENGTH="40" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="targettype" TYPE="char" LENGTH="30" NOTNULL="true" DEFAULT="none" SEQUENCE="false"/>
+        <FIELD NAME="targetid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="relateduserid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="outcome" TYPE="char" LENGTH="20" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="supportid" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="detail" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON, no secrets, no raw issuer/sub"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated"/>
+        <INDEX NAME="actorid" UNIQUE="false" FIELDS="actorid"/>
+        <INDEX NAME="relateduserid" UNIQUE="false" FIELDS="relateduserid"/>
+        <INDEX NAME="supportid" UNIQUE="false" FIELDS="supportid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_request" COMMENT="Link requests: bind an unbound LTI identity to an existing account after the account owner confirmed with a challenge code">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="issuerhash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="subhash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="issuer" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Cleared when the request is finished"/>
+        <FIELD NAME="sub" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Cleared when the request is finished"/>
+        <FIELD NAME="targetuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="requestedby" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="codehash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false" COMMENT="HMAC of the challenge code; the code itself is never stored"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="12" NOTNULL="true" DEFAULT="pending" SEQUENCE="false" COMMENT="pending, completed, expired, cancelled, locked"/>
+        <FIELD NAME="attempts" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timeexpires" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecompleted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="targetuserid" TYPE="foreign" FIELDS="targetuserid" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="requestedby" TYPE="foreign" FIELDS="requestedby" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="identity" UNIQUE="false" FIELDS="issuerhash, subhash"/>
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status, timeexpires"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_text" COMMENT="Admin-configurable, translatable error catalogue texts (limited HTML)">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="code" TYPE="char" LENGTH="40" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="lang" TYPE="char" LENGTH="30" NOTNULL="true" SEQUENCE="false" COMMENT="Language code, or * for all languages"/>
+        <FIELD NAME="title" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="body" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="bodyformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+        <FIELD NAME="usermodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="usermodified" TYPE="foreign" FIELDS="usermodified" REFTABLE="user" REFFIELDS="id"/>
+        <KEY NAME="codelang" TYPE="unique" FIELDS="code, lang"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_merge" COMMENT="Journal of reconciled external account merges (tool_mergeusers): one row per source/target pair, used for idempotence, retry and reporting">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sourceuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Account that was merged away (no foreign key: the account may be deleted afterwards)"/>
+        <FIELD NAME="targetuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Surviving account"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="12" NOTNULL="true" DEFAULT="queued" SEQUENCE="false" COMMENT="queued, done, partial, failed"/>
+        <FIELD NAME="attempts" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="summary" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON counters of the last run, no identifiers"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecompleted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="pair" TYPE="unique" FIELDS="sourceuserid, targetuserid"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="targetuserid" UNIQUE="false" FIELDS="targetuserid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="local_ltiaccountmerge_job" COMMENT="Crash-recovery journal of account merges run through this plugin's reviewed workflow (preview, consent, execution by tool_mergeusers). Written outside the merge transaction, except inmerge.">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="sourceuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Account to be merged away (no foreign key: it may be deleted later)"/>
+        <FIELD NAME="targetuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Account that is kept"/>
+        <FIELD NAME="status" TYPE="char" LENGTH="12" NOTNULL="true" DEFAULT="consented" SEQUENCE="false" COMMENT="consented, running, succeeded, failed, aborted, stale, expired, cancelled"/>
+        <FIELD NAME="previewhash" TYPE="char" LENGTH="64" NOTNULL="true" SEQUENCE="false" COMMENT="Fingerprint of the preview the administrator consented to"/>
+        <FIELD NAME="preview" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON summary of that preview: table names, strategies, counts; no personal data"/>
+        <FIELD NAME="consentby" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Administrator who consented"/>
+        <FIELD NAME="timeconsented" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="inmerge" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Set to 1 inside the merge transaction: survives exactly when the merge was committed"/>
+        <FIELD NAME="mergelogid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Log id of tool_mergeusers, 0 when unknown"/>
+        <FIELD NAME="attempts" TYPE="int" LENGTH="3" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="recovered" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="1 when the final status was set by crash recovery"/>
+        <FIELD NAME="outcome" TYPE="char" LENGTH="40" NOTNULL="false" SEQUENCE="false" COMMENT="Result or error code, no free text"/>
+        <FIELD NAME="supportid" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="timestarted" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timefinished" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+        <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="consentby" TYPE="foreign" FIELDS="consentby" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="status" UNIQUE="false" FIELDS="status"/>
+        <INDEX NAME="sourceuserid" UNIQUE="false" FIELDS="sourceuserid"/>
+        <INDEX NAME="targetuserid" UNIQUE="false" FIELDS="targetuserid"/>
+      </INDEXES>
+    </TABLE>
+  </TABLES>
+</XMLDB>
